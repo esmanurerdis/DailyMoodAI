@@ -1,0 +1,6 @@
+[
+    {"mood": "üzgün", "suggestion": "Derin bir nefes al, biraz su iç ve minnettar olduğun 3 şeyi yaz."},
+    {"mood": "kaygılı", "suggestion": "5 dakikalık bir nefes egzersizi yap ya da dışarıda kısa bir yürüyüşe çık."},
+    {"mood": "mutlu", "suggestion": "Bu güzel enerjiyi yay! Sevdiğin birine mesaj at mesela."},
+    {"mood": "yorgun", "suggestion": "Gözlerini dinlendir, 2 dakikalık esneme yap veya bitki çayı iç."}
+]
