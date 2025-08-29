@@ -1,87 +1,64 @@
-# 📊 Enerji Tüketimi Tahmin Projesi (PJME Hourly)
+#🧠 DailyMoodAI – Mood Suggestion Chatbot
 
-Bu proje, **ABD PJM bölgesine ait saatlik enerji tüketimi verilerini** kullanarak **gelecek enerji talebini tahmin eden** bir makine öğrenmesi uygulamasıdır.  
-Veri analizi, özellik mühendisliği, model eğitimi, hiperparametre optimizasyonu ve Türkçe raporlama adımlarını kapsamaktadır.
+DailyMoodAI, kullanıcının ruh halini kısa bir metinle ifade etmesine olanak tanır ve en uygun öneriyi döndürür.
+Model, TF-IDF + Cosine Similarity yaklaşımıyla ruh hallerini eşleştirir.
+Ek olarak, Gradio arayüzü sayesinde hem terminal hem de web tabanlı kullanım mümkündür.
 
----
+🚀 Özellikler
 
-## 🚀 Proje Özellikleri
-- **Veri Ön İşleme & EDA**: Eksik verilerin analizi, zaman serisi istatistikleri, görselleştirme
-- **Özellik Mühendisliği**: Zaman temelli, lag ve rolling özellikler
-- **Modelleme**: Linear Regression ve XGBoost
-- **Model Doğrulama**: K-Fold cross-validation
-- **Hiperparametre Optimizasyonu**: GridSearchCV ile XGBoost parametre araması
-- **Tahmin**: Gelecek 7 gün için saatlik enerji talebi tahmini
-- **Raporlama**: Türkçe metrikler ve görseller ile rapor oluşturma
+CLI & Web Arayüzü: Terminalden veya tarayıcıdan çalıştırılabilir.
 
----
+Türkçe Mood Önerileri: Üzgün, kaygılı, mutlu, yorgun gibi ruh hallerini yakalar.
 
-## 📂 Proje Yapısı
-```bash
-energy_project/
+TF-IDF + Cosine Similarity: Kısa metinlerde doğru eşleşme için char-ngram tabanlı vektörleştirme.
+
+Gradio UI: Kullanıcı dostu web arayüzü.
+
+Kolay Genişletilebilirlik: Yeni mood ve öneriler JSON dosyasına eklenerek hızlıca çoğaltılabilir.
+
+📂 Proje Yapısı
+DailyMoodAI/
+├── main.py               # Ana uygulama (CLI + Gradio UI)
 ├── data/
-│   └── PJME_hourly.csv           # Ham veri seti
-├── models/
-│   └── xgb_pjme_best.pkl         # Eğitilmiş XGBoost modeli
-├── outputs/
-│   ├── tahminler.csv             # Tahmin sonuçları
-│   ├── rapor_gercek_vs_tahmin_*.png
-│   ├── rapor_hata_zaman_*.png
-│   ├── rapor_hata_hist_*.png
-├── main.py                       # Model eğitimi & tahmin üretimi
-├── model_validation.py           # Cross-validation
-├── hyperparam_tuning.py          # Hiperparametre optimizasyonu
-├── report.py                     # Rapor oluşturma
-├── requirements.txt              # Bağımlılık listesi
-└── README.md                     # Proje açıklaması
-```
+│   └── suggestions.json  # Mood & öneriler
+├── requirements.txt      # Bağımlılıklar
+└── README.md             # Bu dosya
 
----
-
-## 📊 Kullanılan Kütüphaneler
-- Python 3.9+
-- pandas
-- numpy
-- matplotlib
-- scikit-learn
-- xgboost
-- joblib
-
----
-
-## 🔧 Kurulum
-```bash
-# Bağımlılıkları yükle
+🔧 Kurulum ve Çalıştırma
+1. Bağımlılıkları yükle
 pip install -r requirements.txt
 
-# Modeli eğit ve 7 günlük tahmini üret
+2. Çalıştır
+# CLI ve UI birlikte
 python main.py
 
-# Cross-validation ile doğrulama
-python model_validation.py
+# Sadece web arayüzü
+python main.py --mode ui
 
-# Hiperparametre optimizasyonu (opsiyonel)
-python hyperparam_tuning.py
+# Sadece terminal modu
+python main.py --mode cli
 
-# Türkçe rapor üret
-python report.py
-```
+🖼 Demo
 
----
+👉 Buraya bir screenshot veya GIF ekle:
 
-## 📊 Veri Seti
-- **Kaynak:** [Kaggle - PJME Hourly Energy Consumption](https://www.kaggle.com/datasets/robikscube/hourly-energy-consumption)
-- **Kapsam:** 2002–2018 yılları arasında PJM bölgesinde saatlik enerji tüketimi (MW cinsinden)
+Terminal ekran görüntüsü
 
----
+Gradio arayüzünden bir örnek
 
-## 💡 Notlar
-- Proje, hem **Data Science** hem de **Machine Learning Engineer** portföyü için uygundur.
-- Daha yüksek performans için farklı modeller (LightGBM, Prophet vb.) denenebilir.
-- Tahminler, enerji planlaması ve talep yönetimi gibi alanlarda kullanılabilir.
+📊 Kullanılan Teknolojiler
 
----
+Python 3.9+
 
-## 🏷 Lisans
-Bu proje MIT Lisansı ile sunulmaktadır.  
-Dilediğiniz gibi kullanabilir ve geliştirebilirsiniz.
+scikit-learn (TF-IDF, cosine similarity)
+
+Gradio (web UI)
+
+💡 Örnek Kullanım
+Bugün nasıl hissediyorsun? kaygılı
+Eşleşen ruh hali: kaygılı (skor: 0.88)
+Tavsiyen: 5 dakikalık bir nefes egzersizi yap ya da dışarıda kısa bir yürüyüşe çık.
+
+🏷 Lisans
+
+MIT License
