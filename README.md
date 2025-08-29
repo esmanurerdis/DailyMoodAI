@@ -38,13 +38,6 @@ python main.py --mode ui
 # Sadece terminal modu
 python main.py --mode cli
 
-🖼 Demo
-
-👉 Buraya bir screenshot veya GIF ekle:
-
-Terminal ekran görüntüsü
-
-Gradio arayüzünden bir örnek
 
 📊 Kullanılan Teknolojiler
 
