@@ -74,18 +74,6 @@ Cost / latency summary
 python -m scripts.main cost-summary
 
 
-## 📊 Example Outputs
-
-### Gradio UI
-![image alt] (https://github.com/esmanurerdis/DailyMoodAI/blob/a16c6db49d64760b1cd881f62155e3392b9dbbf6/example_ui.PNG)
-
-### Confusion Matrix
-![Confusion Matrix](reports/confusion_matrix.png)
-
-### Cost Plot
-![Cost Plot](reports/cost_plot.png)
-
-
 📑 Notes
 
 Translation: Helsinki-NLP MarianMT
