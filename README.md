@@ -64,7 +64,7 @@ python -m scripts.main cost-summary
 ## 📊 Example Outputs
 
 ### Gradio UI
-![Gradio UI](https://github.com/esmanurerdis/DailyMoodAI/blob/main/example_ui.PNG)
+![Gradio UI](https://raw.githubusercontent.com/esmanurerdis/DailyMoodAI/refs/heads/main/example_ui.PNG)
 
 ### Confusion Matrix
 ![Confusion Matrix](reports/confusion_matrix.png)
