@@ -1,159 +1,192 @@
-# main.py
-# DailyMoodAI - Basit öneri motoru (TR kısa metinler için char n-gram TF-IDF)
-# Modlar: CLI ve Gradio UI
-# Çalıştırma:
-#   python main.py                 # CLI + ardından UI
-#   python main.py --mode ui       # Sadece UI
-#   python main.py --mode cli      # Sadece CLI
-
-from __future__ import annotations
 import argparse
-import json
 from pathlib import Path
-from typing import List, Dict, Any
+import json
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
+import sacrebleu
+from rouge_score import rouge_scorer
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+# Proje içi importlar
+from scripts.inference import (
+    translate_to_en,
+    predict_sentiment,
+    suggest_mood_and_advice,
+)
 
-try:
-    import gradio as gr
-except ImportError:
-    gr = None  # UI gerekmiyorsa sorun değil; sadece CLI çalışır.
+REPORTS_DIR = Path("reports")
+REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# -------------------------
-# Yapılandırmalar
-# -------------------------
-DATA_PATH = Path("data/suggestions.json")  # Öneri dosyan burada dursun.
-
-
-# -------------------------
-# Yardımcı Fonksiyonlar
-# -------------------------
-def load_suggestions(path: Path) -> List[Dict[str, Any]]:
+# 1) ÇEVİRİ DEĞERLENDİRME (BLEU/ROUGE)
+def translate_eval(csv_path: str, out_json: str = "reports/bleu_rouge.json"):
     """
-    suggestions.json formatı:
-    [
-      {"mood": "üzgün",  "suggestion": "Derin bir nefes al..."},
-      {"mood": "kaygılı", "suggestion": "5 dakikalık nefes egzersizi..."},
-      ...
-    ]
+    CSV kolonları: src_lang, src_text, ref_en
     """
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Suggestions file not found: {path}\n"
-            f"Lütfen {path} dosyasını oluştur: örnek içerik ->\n"
-            f'[{{"mood":"üzgün","suggestion":"Derin bir nefes al..."}}]'
-        )
-    with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
+    df = pd.read_csv(csv_path)
 
-    # Basit şema kontrolü
-    if not isinstance(data, list) or not all(isinstance(x, dict) for x in data):
-        raise ValueError("Invalid suggestions.json format: root list of objects required.")
-    for i, item in enumerate(data):
-        if "mood" not in item or "suggestion" not in item:
-            raise ValueError(f"suggestions[{i}] missing 'mood' or 'suggestion' keys.")
-    return data
+    refs = df["ref_en"].tolist()
+    hyps = [translate_to_en(t, l) for t, l in zip(df["src_text"], df["src_lang"])]
 
+    bleu = sacrebleu.corpus_bleu(hyps, [refs]).score
 
-def build_vectorizer() -> TfidfVectorizer:
-    """
-    Türkçe ve kısa metinlerde daha iyi eşleşme için karakter n-gram TF-IDF.
-    """
-    return TfidfVectorizer(analyzer="char", ngram_range=(3, 5))
-
-
-def best_suggestion(user_text: str, suggestions: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Kullanıcı metnini en yakın ruh hali ile eşleştirir.
-    Dönen sözlük: { matched_mood, suggestion, score }
-    """
-    user_text = (user_text or "").strip().lower()
-    if not user_text:
-        return {
-            "matched_mood": "",
-            "suggestion": "Lütfen nasıl hissettiğini bir-iki kelimeyle yaz.",
-            "score": 0.0,
-        }
-
-    moods = [s["mood"] for s in suggestions]
-    vect = build_vectorizer()
-    X = vect.fit_transform(moods + [user_text])
-    sim = cosine_similarity(X[-1], X[:-1]).ravel()
-    idx = int(sim.argmax())
-    return {
-        "matched_mood": moods[idx],
-        "suggestion": suggestions[idx]["suggestion"],
-        "score": float(sim[idx]),
+    scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
+    r1 = r2 = rL = 0.0
+    for r, h in zip(refs, hyps):
+        s = scorer.score(r, h)
+        r1 += s["rouge1"].fmeasure
+        r2 += s["rouge2"].fmeasure
+        rL += s["rougeL"].fmeasure
+    n = max(len(refs), 1)
+    metrics = {
+        "BLEU": bleu,
+        "ROUGE1_F1": r1 / n,
+        "ROUGE2_F1": r2 / n,
+        "ROUGEL_F1": rL / n,
     }
 
+    with open(out_json, "w", encoding="utf-8") as f:
+        json.dump(metrics, f, ensure_ascii=False, indent=2)
 
-# -------------------------
-# CLI ve UI
-# -------------------------
-def run_cli(suggestions: List[Dict[str, Any]]) -> None:
-    try:
-        user_input = input("Bugün nasıl hissediyorsun? ").strip()
-    except (EOFError, KeyboardInterrupt):
-        print("\nİptal edildi.")
+    pd.DataFrame({
+        "src_lang": df["src_lang"],
+        "src_text": df["src_text"],
+        "ref_en": refs,
+        "hyp_en": hyps
+    }).to_csv("reports/bleu_rouge_breakdown.csv", index=False)
+
+    print(f"[OK] Kaydedildi: {out_json} ve reports/bleu_rouge_breakdown.csv")
+
+
+# 2) SENTIMENT DEĞERLENDİRME + CONFUSION MATRIX
+def sentiment_eval(csv_path: str,
+                   out_json: str = "reports/sentiment_report.json",
+                   out_cm: str = "reports/confusion_matrix.png"):
+    """
+    CSV kolonları: text, lang, true_label
+    """
+    df = pd.read_csv(csv_path)
+    y_true = df["true_label"].astype(str).tolist()
+    y_pred = [predict_sentiment(t, l)["label"] for t, l in zip(df["text"], df["lang"])]
+
+    report = classification_report(y_true, y_pred, output_dict=True, zero_division=0)
+    with open(out_json, "w", encoding="utf-8") as f:
+        json.dump(report, f, ensure_ascii=False, indent=2)
+
+    labels = sorted(list(set(y_true) | set(y_pred)))
+    cm = confusion_matrix(y_true, y_pred, labels=labels)
+    disp = ConfusionMatrixDisplay(cm, display_labels=labels)
+    plt.figure()
+    disp.plot(values_format="d")
+    plt.title("Confusion Matrix")
+    plt.tight_layout()
+    plt.savefig(out_cm)
+    plt.close()
+
+    print(f"[OK] Kaydedildi: {out_json} ve {out_cm}")
+
+
+# 3) GRADIO ARAYÜZÜ
+def serve_ui(port: int = 7860):
+    import gradio as gr
+
+    def _predict(text, lang):
+        text = (text or "").strip()
+        if not text:
+            return "—", "—", "Boş giriş"
+        mood_tr, suggestion_tr, text_en = suggest_mood_and_advice(text, lang)
+        return mood_tr, suggestion_tr, text_en
+
+    demo = gr.Interface(
+        fn=_predict,
+        inputs=[gr.Textbox(label="Text"),
+                gr.Dropdown(["tr","en","de","es"], label="Language", value="tr")],
+        outputs=[gr.Label(label="Mood (TR)"),
+                 gr.Textbox(label="Suggestion (TR)", lines=2),
+                 gr.Textbox(label="Translated to English", lines=2)],
+        title="DailyMoodAI — Translate & Suggest (Junior)"
+    )
+    demo.launch(server_name="0.0.0.0", server_port=port, share=False)
+
+
+# 4) ROUTE/COST ÖZETİ (opsiyonel)
+def summarize_cost(log_path="reports/route_log.csv",
+                   out_json="reports/cost_summary.json",
+                   out_png="reports/cost_plot.png"):
+    """
+    'reports/route_log.csv' dosyasından maliyet/çağrı özetini üretir.
+    CSV beklenen kolonlar: timestamp, model, tokens, cost, latency
+    """
+    p = Path(log_path)
+    if not p.exists():
+        print(f"[WARN] {log_path} bulunamadı. Önce log üretmelisin (log_call).")
         return
 
-    result = best_suggestion(user_input, suggestions)
-    print(f"Eşleşen ruh hali: {result['matched_mood']} (skor: {result['score']:.2f})")
-    print("Tavsiyen:", result["suggestion"])
+    df = pd.read_csv(p)
+
+    summary = {
+        "total_calls": int(len(df)),
+        "total_tokens": int(df["tokens"].sum()),
+        "total_cost": float(df["cost"].sum()),
+        "avg_latency": float(df["latency"].mean())
+    }
+
+    per_model = df.groupby("model")[["tokens", "cost"]].sum().reset_index()
+    summary["per_model"] = per_model.to_dict(orient="records")
+
+    with open(out_json, "w", encoding="utf-8") as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2)
+
+    # grafik: model bazlı toplam cost
+    ax = per_model.plot(x="model", y="cost", kind="bar", legend=False)
+    ax.set_ylabel("Total Cost (USD)")
+    ax.set_title("Route Cost by Model")
+    plt.tight_layout()
+    plt.savefig(out_png)
+    plt.close()
+
+    print(f"[OK] Kaydedildi: {out_json} ve {out_png}")
 
 
-def run_ui(suggestions: List[Dict[str, Any]]) -> None:
-    if gr is None:
-        print("Gradio yüklü değil. UI için: pip install gradio")
-        return
+# 5) CLI Kurulumu
+def build_parser():
+    p = argparse.ArgumentParser(description="DailyMoodAI — junior seviye CLI")
+    sub = p.add_subparsers(dest="cmd", required=True)
 
-    def ui_predict(txt: str) -> str:
-        r = best_suggestion(txt, suggestions)
-        return (
-            f"Eşleşen ruh hali: {r['matched_mood']} (skor: {r['score']:.2f})\n"
-            f"Tavsiye: {r['suggestion']}"
-        )
+    # translate-eval
+    t = sub.add_parser("translate-eval", help="BLEU/ROUGE hesapla")
+    t.add_argument("--csv", default="data/translation_eval.csv",
+                   help="Kolonlar: src_lang, src_text, ref_en")
+    t.set_defaults(func=lambda a: translate_eval(a.csv))
 
-    gr.Interface(
-        fn=ui_predict,
-        inputs=gr.Textbox(lines=2, label="Bugün nasıl hissediyorsun?"),
-        outputs=gr.Textbox(lines=4, label="Öneri"),
-        title="DailyMoodAI",
-        description="Kısa bir duygu/mood yaz; en yakın ruh hali ve öneriyi verelim.",
-        allow_flagging="never",
-    ).launch()
+    # sentiment-eval
+    s = sub.add_parser("sentiment-eval", help="Classification report + confusion matrix")
+    s.add_argument("--csv", default="data/sentiment_eval.csv",
+                   help="Kolonlar: text, lang, true_label")
+    s.set_defaults(func=lambda a: sentiment_eval(a.csv))
 
+    # ui
+    u = sub.add_parser("ui", help="Gradio arayüzü")
+    u.add_argument("--port", type=int, default=7860)
+    u.set_defaults(func=lambda a: serve_ui(a.port))
 
-# -------------------------
-# Entry Point
-# -------------------------
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="DailyMoodAI - CLI & Web UI")
-    p.add_argument(
-        "--mode",
-        choices=["cli", "ui", "both"],
-        default="both",
-        help="Çalıştırma modu: cli | ui | both (varsayılan: both)",
-    )
-    p.add_argument(
-        "--data",
-        type=str,
-        default=str(DATA_PATH),
-        help="Öneri JSON dosyasının yolu (varsayılan: data/suggestions.json)",
-    )
-    return p.parse_args()
+    # suggest
+    sg = sub.add_parser("suggest", help="Metni işle ve öneri üret")
+    sg.add_argument("--text", required=True)
+    sg.add_argument("--lang", default="tr")
+    sg.set_defaults(func=lambda a: print(suggest_mood_and_advice(a.text, a.lang)))
 
+    # cost-summary
+    c = sub.add_parser("cost-summary", help="RouteLLM çağrı maliyet özeti üret")
+    c.add_argument("--log", default="reports/route_log.csv")
+    c.add_argument("--json", default="reports/cost_summary.json")
+    c.add_argument("--png", default="reports/cost_plot.png")
+    c.set_defaults(func=lambda a: summarize_cost(a.log, a.json, a.png))
 
-def main() -> None:
-    args = parse_args()
-    suggestions = load_suggestions(Path(args.data))
+    return p
 
-    if args.mode in ("cli", "both"):
-        run_cli(suggestions)
-    if args.mode in ("ui", "both"):
-        run_ui(suggestions)
-
+def main():
+    args = build_parser().parse_args()
+    args.func(args)
 
 if __name__ == "__main__":
     main()

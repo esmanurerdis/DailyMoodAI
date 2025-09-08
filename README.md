@@ -1,57 +1,85 @@
-#🧠 DailyMoodAI – Mood Suggestion Chatbot
+# DailyMoodAI 🎭
 
-DailyMoodAI, kullanıcının ruh halini kısa bir metinle ifade etmesine olanak tanır ve en uygun öneriyi döndürür.
-Model, TF-IDF + Cosine Similarity yaklaşımıyla ruh hallerini eşleştirir.
-Ek olarak, Gradio arayüzü sayesinde hem terminal hem de web tabanlı kullanım mümkündür.
+DailyMoodAI is a multilingual **mood & advice assistant** powered by translation and sentiment analysis.  
+It translates user input into English, classifies mood, and returns a suitable advice from a JSON file.  
+It also provides **BLEU/ROUGE metrics** for translation quality, **Confusion Matrix** for sentiment analysis,  
+and simple **cost/latency logging** for reproducibility.  
 
-🚀 Özellikler
+The project runs fully **locally and free of charge**, using Hugging Face MarianMT and nlptown sentiment models.
 
-CLI & Web Arayüzü: Terminalden veya tarayıcıdan çalıştırılabilir.
+---
 
-Türkçe Mood Önerileri: Üzgün, kaygılı, mutlu, yorgun gibi ruh hallerini yakalar.
+## 🚀 Features
+- Multilingual translation (tr/de/es → en) with MarianMT
+- Mood detection & advice generation (`data/suggestions.json`)
+- BLEU/ROUGE metrics for translation (`translate-eval`)
+- Sentiment analysis with Confusion Matrix (`sentiment-eval`)
+- Gradio user interface (`ui`)
+- Route/cost logging and summary (`cost-summary`)
 
-TF-IDF + Cosine Similarity: Kısa metinlerde doğru eşleşme için char-ngram tabanlı vektörleştirme.
+---
 
-Gradio UI: Kullanıcı dostu web arayüzü.
+## 📦 Installation
 
-Kolay Genişletilebilirlik: Yeni mood ve öneriler JSON dosyasına eklenerek hızlıca çoğaltılabilir.
-
-📂 Proje Yapısı
-DailyMoodAI/
-├── main.py               # Ana uygulama (CLI + Gradio UI)
-├── data/
-│   └── suggestions.json  # Mood & öneriler
-├── requirements.txt      # Bağımlılıklar
-└── README.md             # Bu dosya
-
-🔧 Kurulum ve Çalıştırma
-1. Bağımlılıkları yükle
+```bash
+git clone <repo-url>
+cd DailyMoodAI
 pip install -r requirements.txt
 
-2. Çalıştır
-# CLI ve UI birlikte
-python main.py
+🗂️ Project Structure
+DailyMoodAI/
+├─ data/
+│  ├─ suggestions.json
+│  ├─ translation_eval.csv
+│  └─ sentiment_eval.csv
+├─ reports/
+│  ├─ bleu_rouge.json
+│  ├─ confusion_matrix.png
+│  ├─ cost_summary.json
+│  ├─ cost_plot.png
+│  └─ example_ui.PNG
+├─ scripts/
+│  ├─ main.py
+│  ├─ inference.py
+│  └─ route_logger.py
+└─ README.md
 
-# Sadece web arayüzü
-python main.py --mode ui
+⚙️ Commands
+Translation evaluation
+python -m scripts.main translate-eval --csv data/translation_eval.csv
 
-# Sadece terminal modu
-python main.py --mode cli
+Sentiment evaluation
+python -m scripts.main sentiment-eval --csv data/sentiment_eval.csv
+
+Mood & advice (CLI)
+python -m scripts.main suggest --text "I'm very tired today" --lang en
+
+Gradio interface
+python -m scripts.main ui --port 7860
+# then open http://127.0.0.1:7860 in your browser
+
+Cost / latency summary
+python -m scripts.main cost-summary
+
+## 📊 Example Outputs
+
+### Gradio UI
+![Gradio UI](reports/example_ui.PNG)
+
+### Confusion Matrix
+![Confusion Matrix](reports/confusion_matrix.png)
+
+### Cost Plot
+![Cost Plot](reports/cost_plot.png)
 
 
-📊 Kullanılan Teknolojiler
+📑 Notes
 
-Python 3.9+
+Translation: Helsinki-NLP MarianMT
 
-scikit-learn (TF-IDF, cosine similarity)
+Sentiment: nlptown/bert-base-multilingual-uncased-sentiment
 
-Gradio (web UI)
+All models run locally on CPU, internet is only required for the initial download.
 
-💡 Örnek Kullanım
-Bugün nasıl hissediyorsun? kaygılı
-Eşleşen ruh hali: kaygılı (skor: 0.88)
-Tavsiyen: 5 dakikalık bir nefes egzersizi yap ya da dışarıda kısa bir yürüyüşe çık.
-
-🏷 Lisans
-
-MIT License
+📝 License
+MIT
