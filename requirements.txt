@@ -1,0 +1,9 @@
+transformers
+sentencepiece
+torch
+sacrebleu
+rouge-score
+pandas
+matplotlib
+scikit-learn
+gradio

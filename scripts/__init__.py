@@ -1,0 +1,2 @@
+# makes scripts a package
+
