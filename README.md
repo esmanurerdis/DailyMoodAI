@@ -21,7 +21,7 @@ The project runs fully **locally and free of charge**, using Hugging Face Marian
 ## 📊 Example Outputs
 
 ### Gradio UI
-![image alt] (https://github.com/esmanurerdis/DailyMoodAI/blob/a16c6db49d64760b1cd881f62155e3392b9dbbf6/example_ui.PNG)
+![UI](reports/example_ui.PNG)
 
 ### Confusion Matrix
 ![Confusion Matrix](reports/confusion_matrix.png)
