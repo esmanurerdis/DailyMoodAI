@@ -16,6 +16,18 @@ The project runs fully **locally and free of charge**, using Hugging Face Marian
 - Sentiment analysis with Confusion Matrix (`sentiment-eval`)
 - Gradio user interface (`ui`)
 - Route/cost logging and summary (`cost-summary`)
+---
+
+## 📊 Example Outputs
+
+### Gradio UI
+![image alt] (https://github.com/esmanurerdis/DailyMoodAI/blob/a16c6db49d64760b1cd881f62155e3392b9dbbf6/example_ui.PNG)
+
+### Confusion Matrix
+![Confusion Matrix](reports/confusion_matrix.png)
+
+### Cost Plot
+![Cost Plot](reports/cost_plot.png)
 
 ---
 
@@ -60,6 +72,7 @@ python -m scripts.main ui --port 7860
 
 Cost / latency summary
 python -m scripts.main cost-summary
+
 
 ## 📊 Example Outputs
 
