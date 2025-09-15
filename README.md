@@ -1,9 +1,8 @@
 # DailyMoodAI 🎭
 
-DailyMoodAI is a multilingual **mood & advice assistant** powered by translation and sentiment analysis.  
-It translates user input into English, classifies mood, and returns a suitable advice from a JSON file.  
-It also provides **BLEU/ROUGE metrics** for translation quality, **Confusion Matrix** for sentiment analysis,  
-and simple **cost/latency logging** for reproducibility.  
+- DailyMoodAI is a multilingual **mood & advice assistant** powered by translation and sentiment analysis.  
+- It translates user input into English, classifies mood, and returns a suitable advice from a JSON file.  
+- It also provides **BLEU/ROUGE metrics** for translation quality, **Confusion Matrix** for sentiment analysis and simple **cost/latency logging** for reproducibility.  
 
 The project runs fully **locally and free of charge**, using Hugging Face MarianMT and nlptown sentiment models.
 
@@ -16,6 +15,7 @@ The project runs fully **locally and free of charge**, using Hugging Face Marian
 - Sentiment analysis with Confusion Matrix (`sentiment-eval`)
 - Gradio user interface (`ui`)
 - Route/cost logging and summary (`cost-summary`)
+  
 ---
 
 ## 📊 Example Outputs
@@ -55,32 +55,38 @@ DailyMoodAI/
 │  ├─ inference.py
 │  └─ route_logger.py
 └─ README.md
+```
 
-⚙️ Commands
-Translation evaluation
+---
+
+## ⚙️ Commands
+
+### Translation evaluation
 python -m scripts.main translate-eval --csv data/translation_eval.csv
 
-Sentiment evaluation
+### Sentiment evaluation
 python -m scripts.main sentiment-eval --csv data/sentiment_eval.csv
 
-Mood & advice (CLI)
+### Mood & advice (CLI)
 python -m scripts.main suggest --text "I'm very tired today" --lang en
 
-Gradio interface
+### Gradio interface
 python -m scripts.main ui --port 7860
 # then open http://127.0.0.1:7860 in your browser
 
-Cost / latency summary
+### Cost / latency summary
 python -m scripts.main cost-summary
 
+---
 
-📑 Notes
 
-Translation: Helsinki-NLP MarianMT
+## 📑 Notes
 
-Sentiment: nlptown/bert-base-multilingual-uncased-sentiment
+- Translation: Helsinki-NLP MarianMT
 
-All models run locally on CPU, internet is only required for the initial download.
+- Sentiment: nlptown/bert-base-multilingual-uncased-sentiment
+
+- All models run locally on CPU, internet is only required for the initial download.
 
 📝 License
 MIT
