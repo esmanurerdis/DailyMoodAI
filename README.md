@@ -62,20 +62,33 @@ DailyMoodAI/
 ## ⚙️ Commands
 
 ### Translation evaluation
-python -m scripts.main translate-eval --csv data/translation_eval.csv
 
+```python
+scripts.main translate-eval --csv data/translation_eval.csv
+```
 ### Sentiment evaluation
-python -m scripts.main sentiment-eval --csv data/sentiment_eval.csv
 
+```python
+ scripts.main sentiment-eval --csv data/sentiment_eval.csv
+```
 ### Mood & advice (CLI)
-python -m scripts.main suggest --text "I'm very tired today" --lang en
 
+```python
+scripts.main suggest --text "I'm very tired today" --lang en
+```
 ### Gradio interface
-python -m scripts.main ui --port 7860
-# then open http://127.0.0.1:7860 in your browser
+
+```python
+scripts.main ui --port 7860
+```
+
+### then open http://127.0.0.1:7860 in your browser
 
 ### Cost / latency summary
-python -m scripts.main cost-summary
+
+```python
+scripts.main cost-summary
+```
 
 ---
 
@@ -88,5 +101,24 @@ python -m scripts.main cost-summary
 
 - All models run locally on CPU, internet is only required for the initial download.
 
-📝 License
+---
+
+## 📝 License
 MIT
+---
+
+## 🇹🇷 Türkçe Özet
+
+- DailyMoodAI, çok dilli ruh hali ve öneri asistanıdır. Kullanıcıdan gelen metni İngilizce’ye çevirir, ruh halini sınıflandırır ve JSON dosyasındaki uygun bir öneriyi döndürür.
+
+- Çok Dilli Çeviri: Türkçe, Almanca, İspanyolca → İngilizce (MarianMT ile)
+
+- Ruh Hali Tespiti & Öneri Üretimi: data/suggestions.json kullanılarak yapılır
+
+- Değerlendirme: BLEU/ROUGE metrikleri çeviri kalitesi için, Confusion Matrix duygu sınıflandırması için
+
+- Arayüz: Gradio kullanıcı arayüzü; Tkinter veya CLI ile ek kullanım imkanı
+
+- Performans / Maliyet Takibi: Basit cost/latency logging ile tekrar üretilebilirlik sağlanır
+
+- Yerel Çalışma: Tüm modeller CPU üzerinde çalışır; internet sadece ilk model indirme için gereklidir
