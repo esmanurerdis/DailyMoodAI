@@ -1,9 +1,8 @@
 # DailyMoodAI 🎭
 
-DailyMoodAI is a multilingual **mood & advice assistant** powered by translation and sentiment analysis.  
-It translates user input into English, classifies mood, and returns a suitable advice from a JSON file.  
-It also provides **BLEU/ROUGE metrics** for translation quality, **Confusion Matrix** for sentiment analysis,  
-and simple **cost/latency logging** for reproducibility.  
+- DailyMoodAI is a multilingual **mood & advice assistant** powered by translation and sentiment analysis.  
+- It translates user input into English, classifies mood, and returns a suitable advice from a JSON file.  
+- It also provides **BLEU/ROUGE metrics** for translation quality, **Confusion Matrix** for sentiment analysis and simple **cost/latency logging** for reproducibility.  
 
 The project runs fully **locally and free of charge**, using Hugging Face MarianMT and nlptown sentiment models.
 
@@ -16,6 +15,19 @@ The project runs fully **locally and free of charge**, using Hugging Face Marian
 - Sentiment analysis with Confusion Matrix (`sentiment-eval`)
 - Gradio user interface (`ui`)
 - Route/cost logging and summary (`cost-summary`)
+  
+---
+
+## 📊 Example Outputs
+
+### Gradio UI
+![UI](reports/example_ui.PNG)
+
+### Confusion Matrix
+![Confusion Matrix](reports/confusion_matrix.png)
+
+### Cost Plot
+![Cost Plot](reports/cost_plot.png)
 
 ---
 
@@ -43,43 +55,70 @@ DailyMoodAI/
 │  ├─ inference.py
 │  └─ route_logger.py
 └─ README.md
+```
 
-⚙️ Commands
-Translation evaluation
-python -m scripts.main translate-eval --csv data/translation_eval.csv
+---
 
-Sentiment evaluation
-python -m scripts.main sentiment-eval --csv data/sentiment_eval.csv
+## ⚙️ Commands
 
-Mood & advice (CLI)
-python -m scripts.main suggest --text "I'm very tired today" --lang en
+### Translation evaluation
 
-Gradio interface
-python -m scripts.main ui --port 7860
-# then open http://127.0.0.1:7860 in your browser
+```python
+scripts.main translate-eval --csv data/translation_eval.csv
+```
+### Sentiment evaluation
 
-Cost / latency summary
-python -m scripts.main cost-summary
+```python
+ scripts.main sentiment-eval --csv data/sentiment_eval.csv
+```
+### Mood & advice (CLI)
 
-## 📊 Example Outputs
+```python
+scripts.main suggest --text "I'm very tired today" --lang en
+```
+### Gradio interface
 
-### Gradio UI
-![Gradio UI](reports/example_ui.PNG)
+```python
+scripts.main ui --port 7860
+```
 
-### Confusion Matrix
-![Confusion Matrix](reports/confusion_matrix.png)
+### then open http://127.0.0.1:7860 in your browser
 
-### Cost Plot
-![Cost Plot](reports/cost_plot.png)
+### Cost / latency summary
+
+```python
+scripts.main cost-summary
+```
+
+---
 
 
-📑 Notes
+## 📑 Notes
 
-Translation: Helsinki-NLP MarianMT
+- Translation: Helsinki-NLP MarianMT
 
-Sentiment: nlptown/bert-base-multilingual-uncased-sentiment
+- Sentiment: nlptown/bert-base-multilingual-uncased-sentiment
 
-All models run locally on CPU, internet is only required for the initial download.
+- All models run locally on CPU, internet is only required for the initial download.
 
-📝 License
+---
+
+## 📝 License
 MIT
+---
+
+## 🇹🇷 Türkçe Özet
+
+- DailyMoodAI, çok dilli ruh hali ve öneri asistanıdır. Kullanıcıdan gelen metni İngilizce’ye çevirir, ruh halini sınıflandırır ve JSON dosyasındaki uygun bir öneriyi döndürür.
+
+- Çok Dilli Çeviri: Türkçe, Almanca, İspanyolca → İngilizce (MarianMT ile)
+
+- Ruh Hali Tespiti & Öneri Üretimi: data/suggestions.json kullanılarak yapılır
+
+- Değerlendirme: BLEU/ROUGE metrikleri çeviri kalitesi için, Confusion Matrix duygu sınıflandırması için
+
+- Arayüz: Gradio kullanıcı arayüzü; Tkinter veya CLI ile ek kullanım imkanı
+
+- Performans / Maliyet Takibi: Basit cost/latency logging ile tekrar üretilebilirlik sağlanır
+
+- Yerel Çalışma: Tüm modeller CPU üzerinde çalışır; internet sadece ilk model indirme için gereklidir
