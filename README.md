@@ -4,7 +4,6 @@
 ![Python](https://img.shields.io/badge/Python-3.10-blue?style=flat&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 ![Status](https://img.shields.io/badge/Status-Active-success)
-![DailyMoodAI Demo](reports/DailyMoodAI.png)
 
 **DailyMoodAI** is an advanced AI-powered assistant designed to break language barriers and provide emotional support. It leverages **Deep Learning (Transformers)** and **Pivot Translation Architecture** to understand user sentiment across multiple languages and offer personalized advice.
 
