@@ -153,7 +153,7 @@ python -m scripts.main cost-summary
 
 ## 🏗️ Kullanılan Teknolojiler 
 
-- Çekirdek: Python 3.10, PyTorch, Pandas
+- Çekirdek: Python 3.10, PyTorch, Pandas, Scikit-learn
 
 - Modeller: Hugging Face Transformers (Çeviri için MarianMT, Duygu için BERT)
 
