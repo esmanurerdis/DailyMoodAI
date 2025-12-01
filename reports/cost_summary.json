@@ -1,13 +1,5 @@
 {
-  "total_calls": 2,
-  "total_tokens": 7,
+  "total_calls": 7,
   "total_cost": 0.0,
-  "avg_latency": 0.3666385000005903,
-  "per_model": [
-    {
-      "model": "translation-tr-en",
-      "tokens": 7,
-      "cost": 0.0
-    }
-  ]
+  "avg_latency": 0.297
 }
