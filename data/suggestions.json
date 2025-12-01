@@ -1,6 +1,17 @@
-[
-    {"mood": "üzgün", "suggestion": "Derin bir nefes al, biraz su iç ve minnettar olduğun 3 şeyi yaz."},
-    {"mood": "kaygılı", "suggestion": "5 dakikalık bir nefes egzersizi yap ya da dışarıda kısa bir yürüyüşe çık."},
-    {"mood": "mutlu", "suggestion": "Bu güzel enerjiyi yay! Sevdiğin birine mesaj at mesela."},
-    {"mood": "yorgun", "suggestion": "Gözlerini dinlendir, 2 dakikalık esneme yap veya bitki çayı iç."}
-]
+{
+  "positive": [
+    "Great energy! How about learning something new with this motivation?",
+    "Your energy is high, enjoy this moment!",
+    "You are doing great, spread this positivity around."
+  ],
+  "negative": [
+    "It might be a tough day, but it will pass. Try taking a short break.",
+    "Don't be hard on yourself, take a deep breath and take a small step.",
+    "You might feel overwhelmed, but this is just temporary."
+  ],
+  "neutral": [
+    "It seems like a calm day. Maybe a coffee would be good.",
+    "Balance is important. You can take some time for yourself today.",
+    "Routine is good, but a small change can add color to your day."
+  ]
+}

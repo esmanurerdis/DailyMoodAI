@@ -1,131 +1,103 @@
+"""
+DailyMoodAI - Core Inference Module
+Supports bi-directional and cross-lingual translation via English pivot.
+"""
+
 from __future__ import annotations
 
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Optional
 from functools import lru_cache
 from pathlib import Path
 from time import perf_counter
 import json
 import re
+import logging
+import random
 
-# Route/cost logger
-from scripts.route_logger import log_call
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# 1) ÇEVİRİ MarianMT 
-_SUPPORTED = {
-    "tr": "Helsinki-NLP/opus-mt-tr-en",
-    "de": "Helsinki-NLP/opus-mt-de-en",
-    "es": "Helsinki-NLP/opus-mt-es-en",
-    "en": None,  # İngilizce gelirse model gerekmez
+# Dummy logger setup
+try:
+    from scripts.route_logger import log_call
+except ImportError:
+    try:
+        from route_logger import log_call
+    except ImportError:
+        def log_call(**kwargs): pass
+
+# =============================================================================
+# 1. TRANSLATION LOGIC (Smart Pivot)
+# =============================================================================
+
+_LANG_MODELS = {
+    "tr": {"to_en": "Helsinki-NLP/opus-mt-tr-en", "from_en": "Helsinki-NLP/opus-mt-en-tr"},
+    "de": {"to_en": "Helsinki-NLP/opus-mt-de-en", "from_en": "Helsinki-NLP/opus-mt-en-de"},
+    "es": {"to_en": "Helsinki-NLP/opus-mt-es-en", "from_en": "Helsinki-NLP/opus-mt-en-es"},
+    "fr": {"to_en": "Helsinki-NLP/opus-mt-fr-en", "from_en": "Helsinki-NLP/opus-mt-en-fr"},
+    "en": None
 }
 
 @lru_cache(maxsize=None)
-def _get_translation_pipe(src_lang: str):
-    """Kaynak dil için çeviri pipeline'ını hazırla ve cache et."""
-    src = (src_lang or "").lower()
-    if src == "en":
-        return None
+def _get_translation_pipe(model_id: str):
+    if not model_id: return None
     from transformers import pipeline
-    model_id = _SUPPORTED.get(src)
-    if model_id is None:
-        return None
-    # CPU kullanımı: device=-1
+    logger.info(f"Loading translation model: {model_id}")
     return pipeline("translation", model=model_id, device=-1)
 
-def translate_to_en(text: str, src_lang: str) -> str:
-    """Metni İngilizceye çevir. Desteklenmeyen dil gelirse olduğu gibi döndürür."""
-    if not text:
-        return ""
-    pipe = _get_translation_pipe(src_lang)
-    if pipe is None:
-        # İngilizce veya desteklenmeyen dil → çevirmeden döndür
+def translate_text(text: str, source_lang: str, target_lang: str) -> str:
+    """
+    Translates text from Source -> Target.
+    If direct translation isn't possible, uses English as a pivot (Src -> EN -> Tgt).
+    """
+    if not text or not text.strip(): return ""
+    
+    src = (source_lang or "").lower()
+    tgt = (target_lang or "").lower()
+    
+    # 1. Same language? Return as is.
+    if src == tgt:
+        return text
+    
+    # 2. Cross-Lingual Case (e.g., TR -> DE)
+    # Neither side is English, so we must pivot: TR -> EN -> DE
+    if src != "en" and tgt != "en":
+        # Step A: Src -> EN
+        intermediate_text = translate_text(text, src, "en")
+        # Step B: EN -> Tgt
+        final_text = translate_text(intermediate_text, "en", tgt)
+        return final_text
+
+    # 3. Direct Translation (X -> EN or EN -> X)
+    model_id = None
+    if tgt == "en":
+        lang_config = _LANG_MODELS.get(src)
+        if lang_config: model_id = lang_config.get("to_en")
+    elif src == "en":
+        lang_config = _LANG_MODELS.get(tgt)
+        if lang_config: model_id = lang_config.get("from_en")
+            
+    if not model_id:
+        logger.warning(f"No model found for {src} -> {tgt}")
         return text
 
-    # Süre ölç + çeviri
-    start = perf_counter()
-    out = pipe(text, max_length=256)
-    latency = perf_counter() - start
+    try:
+        pipe = _get_translation_pipe(model_id)
+        start = perf_counter()
+        # Run translation
+        out = pipe(text[:512], max_length=512)
+        latency = perf_counter() - start
+        
+        log_call(model=model_id, tokens=len(text.split()), cost=0.0, latency=latency)
+        return out[0]["translation_text"]
+    except Exception as e:
+        logger.error(f"Translation failed: {e}")
+        return text
 
-    hyp = out[0]["translation_text"]
+# =============================================================================
+# 2. SENTIMENT ANALYSIS
+# =============================================================================
 
-    # Kaba token tahmini: boşlukla ayrılmış kelime sayısı
-    tokens = len((text or "").split())
-
-    # Lokal model → cost=0.0
-    log_call(model=f"translation-{(src_lang or '').lower()}-en", tokens=tokens, cost=0.0, latency=latency)
-    return hyp
-
-# EN mood -> TR karşılık
-_EN2TR = {
-    "sad": "üzgün",
-    "anxious": "kaygılı",
-    "happy": "mutlu",
-    "tired": "yorgun",
-}
-
-# Basit İngilizce anahtar kelime listeleri
-_KW = {
-    "tired":   {"tired", "sleepy", "exhausted", "fatigued", "weary", "drained"},
-    "anxious": {"anxious", "nervous", "worried", "stressed", "panic", "tense"},
-    "sad":     {"sad", "unhappy", "upset", "depressed", "down", "miserable"},
-    "happy":   {"happy", "good", "great", "glad", "joy", "love", "excited", "awesome", "fine", "okay", "ok"},
-}
-
-def _normalize_en(s: str) -> List[str]:
-    s = (s or "").lower()
-    s = re.sub(r"[^a-z\s]", " ", s)  # basit temizlik
-    return s.split()
-
-def _rule_based_mood_en(text_en: str) -> str:
-    """Çok basit, anlaşılır kural seti (junior seviye)."""
-    toks = set(_normalize_en(text_en))
-
-    # 1) Fiziksel yorgunluk işaretleri varsa önce onu seç
-    if toks & _KW["tired"]:
-        return "tired"
-    # 2) Kaygı işaretleri
-    if toks & _KW["anxious"]:
-        return "anxious"
-
-    # 3) Mutlu vs üzgün sayımı
-    happy_hits = len(toks & _KW["happy"])
-    sad_hits   = len(toks & _KW["sad"])
-    if happy_hits > sad_hits:
-        return "happy"
-    if sad_hits > happy_hits:
-        return "sad"
-
-    # 4) Nötr: pozitif varsayım
-    return "happy"
-
-@lru_cache(maxsize=None)
-def _load_suggestions(path: str = "data/suggestions.json") -> List[Dict]:
-    p = Path(path)
-    with p.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-def suggest_mood_and_advice(user_text: str, lang: str = "tr") -> Tuple[str, str, str]:
-    """
-    Girdi: user_text + dili
-    Çıkış: (mood_tr, suggestion_tr, translated_en)
-    """
-    # 1) İngilizce normalize et
-    text_en = user_text if (lang or "").lower() == "en" else translate_to_en(user_text, lang)
-
-    # 2) Mood tespit (EN)
-    mood_en = _rule_based_mood_en(text_en)
-
-    # 3) TR karşılık + öneriyi getir
-    mood_tr = _EN2TR[mood_en]
-    suggestions = _load_suggestions()
-    suggestion_tr = next(
-        (row["suggestion"] for row in suggestions if row.get("mood") == mood_tr),
-        "Kendine nazik ol; kısa bir mola ver. 😊"
-    )
-    return mood_tr, suggestion_tr, text_en
-
-# 3) SENTIMENT (gerçek model – çok dilli)
-# Model: nlptown/bert-base-multilingual-uncased-sentiment
-# Çıktıyı 1–5 yıldızdan pos/neg/neu'ya çeviriyoruz.
 @lru_cache(maxsize=1)
 def _get_sentiment_pipe():
     from transformers import pipeline
@@ -133,35 +105,89 @@ def _get_sentiment_pipe():
     return pipeline("sentiment-analysis", model=model_id, device=-1)
 
 def predict_sentiment(text: str, lang: str = "tr") -> Dict[str, float]:
-    """
-    Dönen sözlük:
-      {"label": "pos|neg|neu", "proba": 0.0-1.0}
-    """
-    if not text:
+    if not text or not text.strip(): return {"label": "neu", "proba": 0.0}
+    try:
+        pipe = _get_sentiment_pipe()
+        result = pipe(text[:512])[0]
+        label = result["label"]
+        score = float(result["score"])
+        try:
+            stars = int(label.split()[0])
+        except:
+            return {"label": "neu", "proba": score}
+        
+        if stars in (4, 5): return {"label": "pos", "proba": score}
+        elif stars == 3: return {"label": "neu", "proba": score}
+        else: return {"label": "neg", "proba": score}
+    except Exception as e:
+        logger.error(f"Sentiment failed: {e}")
         return {"label": "neu", "proba": 0.0}
 
-    pipe = _get_sentiment_pipe()
+# =============================================================================
+# 3. MOOD & ADVICE LOGIC
+# =============================================================================
 
-    # Süre ölç + tahmin
-    start = perf_counter()
-    result = pipe(text[:512])[0] 
-    latency = perf_counter() - start
+_MOOD_KEYWORDS = {
+    "tired": {"tired", "sleepy", "exhausted", "fatigued", "weary"},
+    "anxious": {"anxious", "nervous", "worried", "stressed", "panic"},
+    "sad": {"sad", "unhappy", "upset", "depressed", "down", "blue"},
+    "happy": {"happy", "good", "great", "glad", "joy", "excited"}
+}
 
-    # Token tahmini
-    tokens = len((text or "").split())
+def _detect_mood_rule_based(text_en: str) -> str:
+    tokens = set(re.sub(r"[^a-z\s]", " ", text_en.lower()).split())
+    if tokens & _MOOD_KEYWORDS["tired"]: return "tired"
+    if tokens & _MOOD_KEYWORDS["anxious"]: return "anxious"
+    if len(tokens & _MOOD_KEYWORDS["sad"]) > len(tokens & _MOOD_KEYWORDS["happy"]): return "sad"
+    return "happy"
 
-    # Logla (lokal model, cost=0.0)
-    log_call(model="sentiment-nlptown-bert", tokens=tokens, cost=0.0, latency=latency)
+@lru_cache(maxsize=None)
+def _load_suggestions(path: str = "data/suggestions.json") -> Dict:
+    p = Path(path)
+    if not p.exists(): p = Path(__file__).parent.parent / "data" / "suggestions.json"
+    if not p.exists(): return {}
+    with p.open("r", encoding="utf-8") as f: return json.load(f)
 
-    label = result["label"]
-    score = float(result["score"])
+def suggest_mood_and_advice(user_text: str, input_lang: str = "tr", target_lang: str = "en") -> Tuple[str, str, str]:
+    """
+    1. Translate Input -> EN (for analysis)
+    2. Analyze Mood
+    3. Generate Advice (in EN)
+    4. Translate Advice -> Input Lang (for user)
+    5. Translate Input -> Target Lang (for user requested translation)
+    """
     try:
-        stars = int(label.split()[0])
-    except Exception:
-        return {"label": "neu", "proba": score}
+        # 1. Analysis is always done in English
+        text_for_analysis = translate_text(user_text, input_lang, "en")
+        
+        # 2. Detect Mood
+        mood_en = _detect_mood_rule_based(text_for_analysis)
+        
+        # 3. Get Advice
+        mood_map = {"happy": "positive", "sad": "negative", "anxious": "negative", "tired": "neutral"}
+        category = mood_map.get(mood_en, "neutral")
+        suggestions = _load_suggestions()
+        options = suggestions.get(category, ["Stay positive!"])
+        advice_en = random.choice(options)
+        
+        # 4. Translate Advice back to User's Native Language
+        advice_local = translate_text(advice_en, "en", input_lang)
+        
+        # 5. Translate Original Input to Requested Target Language
+        translated_input = translate_text(user_text, input_lang, target_lang)
+        
+        return mood_en, advice_local, translated_input
+        
+    except Exception as e:
+        logger.error(f"Logic error: {e}")
+        return "error", "Error.", user_text
 
-    if stars in (4, 5):
-        return {"label": "pos", "proba": score}
-    if stars == 3:
-        return {"label": "neu", "proba": score}
-    return {"label": "neg", "proba": score}
+# =============================================================================
+# 4. UTILS
+# =============================================================================
+
+def get_supported_languages() -> List[str]:
+    return list(_LANG_MODELS.keys())
+
+def get_model_info() -> Dict[str, str]:
+    return {"status": "Active", "mode": "Bi-Directional Translation"}
